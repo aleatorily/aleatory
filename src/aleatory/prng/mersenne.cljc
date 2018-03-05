@@ -1,5 +1,5 @@
 (ns aleatory.prng.mersenne
-  "This is yet another implementation of the Mersenne twister MT19936
+  "This is yet another implementation of the Mersenne twister MT19937
   for 32-bits Pseudo-Random Number Generation (PRNG).
   
   as described at: http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/emt19937ar.html
@@ -67,7 +67,7 @@
       ;; end
       (->MTState mt N))))
 
-;; (mk-mtstate-by-val 32)
+(mk-mtstate-by-val 424242)
 
 ;; TODO : initialization by vector/array of values (requires a counted thing)
 ;; (defn mk-mtstate-by-vals [seeds])
@@ -85,9 +85,11 @@
             mti' (if (odd? s)
                    (bit-xor mti MATRIX_A)
                    mti)]
-        (recur (inc i) (assoc mt i mti)))
+        (recur (inc i) (assoc mt i mti')))
       ;; end
       (->MTState mt 0))))
+
+;; (last (:mt (twister (mk-mtstate-by-val 424242))))
 
 (defn next-num [state]
   (let [state (if (>= (:index state) N)
@@ -101,7 +103,7 @@
         x (bit-and x MASK_32BITS)]
     [x (update state :index inc)]))
 
-;; (next-num (mk-mtstate-by-val 424242))
+;; (next-num (second (next-num (mk-mtstate-by-val 424242))))
 
 
 (defn num->real [num]
