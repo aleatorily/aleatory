@@ -106,7 +106,8 @@
         x (bit-xor x (bit-and (<< x 7) 2636928640))
         x (bit-xor x (bit-and (<< x 15) 4022730752))
         x (bit-xor x (>>> x 18))
-        x (bit-and x MASK_32BITS)]
+        x #?(:clj (bit-and x MASK_32BITS)
+             :cljs (>>> x 0))]
     [x (update state :index inc)]))
 
 ;; (next-num (second (next-num (mk-mtstate-by-val 424242))))

@@ -138,13 +138,6 @@
     (let [[num rnd'] (next-uint32 rnd)]
       (cons num (rand-uint32-seq rnd'))))))
 
-(take 10 (rand-uint32-seq (make-random 424242)))
-
-(filter #(or (<= % 9)
-             (>= % 90)) (take 10000 (rand-uint32-seq (make-random 424242) 10 90)))
-
-(filter #(>= % 90) (take 10000 (rand-uint32-seq (make-random 424242) 90)))
-
 (defn rand-long-seq
   "Generates a sequence of random (64bits) integers from the given `rnd` random source."
   ([rnd min max] (map (partial integer-bounds min max) (rand-long-seq rnd)))
