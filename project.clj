@@ -18,6 +18,11 @@
                     ]}
              :test {:dependencies [[org.clojure/clojure "1.9.0"]
                                    [org.clojure/clojurescript "1.9.946"]]}}
+  :doo {:build "test"
+        :alias {:default [:node]
+                :browsers [:chrome :firefox]
+                :all [:browsers :headless]}}
+  
   :cljsbuild {:builds
               {:dev {:source-paths ["src"]
                      :jar true
@@ -27,8 +32,9 @@
                :test {:source-paths ["src" "test"]
                      :jar true
                       :compiler {:output-to "resources/public/js/all-tests.js"
+                                 :target :nodejs
                                  :main aleatory.test-runner
-                                 :optimizations :whitespace
+                                 :optimizations :none
                                  :pretty-print true}}}}
   )
 

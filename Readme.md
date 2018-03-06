@@ -7,6 +7,24 @@ Generating random stuff, by chance ...
 
 Note that it's an experimental repository, nothing much usable for now
 
+
+## Unit tests
+
+To launch the unit tests:
+
+Clojure (JVM runtime):
+
+```
+lein test
+```
+
+
+Clojurescript (default runtime nodejs):
+
+```
+lein doo
+```
+
 ----
 
 Copyright (c) 2018- Michal Marczyk and Frederic Peschanski

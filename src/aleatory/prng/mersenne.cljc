@@ -39,11 +39,8 @@
 (def MASK_32BITS 0xFFFFFFFF)
 
 ;; useful aliases
-(definline >>> [x n]
-  `(unsigned-bit-shift-right ~x ~n))
-
-(definline << [x n]
-  `(bit-shift-left ~x ~n))
+(def ^:const >>> unsigned-bit-shift-right)
+(def ^:const << bit-shift-left)
 
 ;;; Mersenne tiwster state
 (defrecord MTState [mt index])

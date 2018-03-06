@@ -5,13 +5,11 @@
   sources for generating more complex things. The PRNG protocol
    allows to use different algorithms with different characteristics.
   "
-  (:require [aleatory.prng.mersenne :as m])
-
-  (:require #?(:clj [aleatory.prng.mersenne :as m]
-               :cljs [aleatory.prng.mersenne :as m :refer [MTState]]))
-  #?(:clj
-     (:import [aleatory.prng.mersenne MTState]))
- 
+  (:require  #?(:clj [aleatory.prng.mersenne :as m]
+                :cljs [aleatory.prng.mersenne :as m :refer [MTState]]))
+             
+  #?(:clj (:import [aleatory.prng.mersenne MTState]))
+  
   )
 
 ;; We fix the word size for the random generation
