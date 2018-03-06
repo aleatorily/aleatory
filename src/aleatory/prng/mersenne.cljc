@@ -53,13 +53,22 @@
 (def MULTIPLIER_SEED 1812433253)
 
 (defn mk-mtstate-by-val [seed]
-  (loop [mti 1, prev seed, mt [seed]]
+  (loop [mti 1, prev seed, mt #?(:clj [seed]
+                                 :cljs [(>>> seed 0)])]
     (if (< mti N)
       (let [s (bit-xor prev (>>> prev 30))
-            new (-> s
-                    (* MULTIPLIER_SEED)
-                    (+ mti)
-                    (bit-and MASK_32BITS))]
+            new #?(:clj (-> s
+                            (* MULTIPLIER_SEED)
+                            (+ mti)
+                            (bit-and MASK_32BITS))
+                   :cljs (-> s
+                             (bit-and 0xFFFF0000)
+                             (>>> 16)
+                             (* MULTIPLIER_SEED)
+                             (<< 16)
+                             (+ (* (bit-and s 0x0000FFFF) MULTIPLIER_SEED))
+                             (+ mti)
+                             (>>> 0)))]
         (recur (inc mti) new (conj mt new)))
       ;; end
       (->MTState mt N))))

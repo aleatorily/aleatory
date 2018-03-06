@@ -45,14 +45,12 @@
   ([prng seed] (let [prng (prng seed)]
                  (->RandomSource prng seed 0 nil 0))))
 
-(make-random)
-
 
 (defn- consume [rnd]
   (let [[num prng] (next-uint32-impl (:prng rnd))]
     (->RandomSource prng (:seed rnd) (inc (:count rnd)) num (dec WORD-SIZE))))
 
-(consume (make-random 424242))
+;; (consume (make-random 424242))
 
 (defn integer-bounds [min max x]
   (+ (mod x (- max min)) min))
@@ -68,11 +66,6 @@
   ([rnd]
   (let [rnd' (consume rnd)]
     [(:last rnd') (assoc rnd' :last nil)])))
-
-(next-uint32 (make-random 424242))
-(next-uint32 (second (next-uint32 (make-random 424242))))
-(next-uint32 (make-random 424242) 10 100)
-(next-uint32 (make-random 424242) 90)
 
 (defn next-bool
   "Consumes a uniform random boolean from
