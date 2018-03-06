@@ -26,15 +26,17 @@
   :cljsbuild {:builds
               {:dev {:source-paths ["src"]
                      :jar true
-                     :compiler {:output-to "resources/public/js/main-dev.js"
+                     :compiler {:output-to "target/js/main-dev.js"
                                 :optimizations :whitespace
                                 :pretty-print true}}
                :test {:source-paths ["src" "test"]
                      :jar true
-                      :compiler {:output-to "resources/public/js/all-tests.js"
+                      :compiler {:output-to "target/js/all-tests.js"
                                  :target :nodejs
                                  :main aleatory.test-runner
                                  :optimizations :none
                                  :pretty-print true}}}}
+
+  :clean-targets [:target-path "out"]
   )
 
