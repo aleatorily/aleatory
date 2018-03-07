@@ -8,7 +8,7 @@ Generating random stuff, by chance ...
 Note that it's an experimental repository, nothing much usable for now
 
 ```text
-jgs   ./ |   _________________                                  
+    jgs   ./ |   _________________                                  
          /  /   /  __________    //\_                               
        /'  /   |  (__________)  ||.' `-.________________________    
       /   /    |    __________  ||`._.-'~~~~~~~~~~~~~~~~~~~~~~~~`   
