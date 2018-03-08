@@ -8,8 +8,7 @@
 
 (defn tuple? [n v]
   (and (vector? v)
-       (= (count v) n)))
-
+       (clojure.core/= (count v) n)))
 
 (defn seq-nth [n s]
   (first (drop n s)))
@@ -67,7 +66,7 @@
 #?(:clj (defmacro except-info [expr]
           `(try ~expr
                 (catch Exception e# (assoc (ex-data e#) :message (.getMessage e#)))))
-   :cljs (defmacro except [expr catch-form]
+   :cljs (defmacro except-info [expr catch-form]
           `(try ~expr
                 (catch js/Object e# (assoc (ex-data e#) :message (.getMessage e#))))))
 

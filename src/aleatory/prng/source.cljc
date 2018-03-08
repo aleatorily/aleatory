@@ -82,6 +82,7 @@
 (next-bool (make-random 424242))
 (next-bool (second (next-bool (make-random 424242))))
 
+(declare next-real)
 (defn next-bernoulli [src ptrue]
   "Generate a non-uniform boolean from random source `src` using
 Bernoulli distribution. The probability of drawing value `true`

@@ -195,18 +195,18 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
                                                       :char c}))
     (update as :chars #(conj % c))))
 
-(u/except (alpha-insert-char (alpha-literal \a) \a) :bang!) 
+;; (u/except (alpha-insert-char (alpha-literal \a) \a) :bang!) 
 (alpha-insert-char (alpha-literal \a) \b)
-(u/except (alpha-insert-char (alpha-range \a \z) \m) :bang!) 
+;; (u/except (alpha-insert-char (alpha-range \a \z) \m) :bang!) 
 (alpha-insert-char (alpha-range \a \z) \M) 
 
 (defn alpha-insert-set [as cs]
   (reduce alpha-insert-char as cs))
 
 (alpha-insert-set (alpha-literal \a) (sorted-set \b \c \d))
-(u/except-info (alpha-insert-set (alpha-literal \a) (sorted-set \b \c \d \a)))
+;; (u/except-info (alpha-insert-set (alpha-literal \a) (sorted-set \b \c \d \a)))
 (alpha-insert-set (alpha-range \a \z) (sorted-set \B \C \D))
-(u/except-info (alpha-insert-set (alpha-range \a \z) (sorted-set \B \c \D)))
+;; (u/except-info (alpha-insert-set (alpha-range \a \z) (sorted-set \B \c \D)))
 
 (defn range-in-alpha? [alpha cmin cmax]
   (or (some #(char-in-range? cmin cmax %) (:chars alpha))
@@ -228,7 +228,7 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 
 ;; XXX: we could normalize but that's not really useful
 (alpha-insert-range (alpha-literal \a) \b \z)
-(u/except-info (alpha-insert-range (alpha-range \a \z) \c \p))
+;; (u/except-info (alpha-insert-range (alpha-range \a \z) \c \p))
 
 (defn alpha-union-impl
   [alpha alphas]
@@ -251,8 +251,8 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 (alpha-union (alpha-literal \a)
              (alpha-range \e \z))
 
-(u/except-info (alpha-union (alpha-literal \f)
-                            (alpha-range \e \z)))
+;; (u/except-info (alpha-union (alpha-literal \f)
+;;                             (alpha-range \e \z)))
 
 (defrecord UnifChar [alpha])
 
@@ -279,8 +279,9 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
     :else
     (throw (ex-info "Not a correct alphabet descriptor." {:wrong-alphabet alpha}))))
 
-(defn ^{:doc (:doc unif-char-descr)}
-  unif-char [& alphas]
+(defn unif-char
+  "Draw a uniform character in the given alphabets `alphas`."
+  [& alphas]
   (->UnifChar (apply alpha-union (map alpha-build alphas))))
 
 (defn alpha-indices [alpha]

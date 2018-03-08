@@ -26,8 +26,12 @@ The generator is `:sized` and thus consumes, for its element count, the whole re
  a timeout is reached).
 This generator also preserves uniformity."})
 
-(defn ^{:doc (:doc simple-vector-descr)}
-  simple-vector [atom]
+(defn simple-vector
+  "A generator for vectors of atomic values described by the `atom` parameter.
+  The generator is `:sized` and thus consumes, for its element count, the whole remaining fuel size (unless
+  a timeout is reached).
+  This generator also preserves uniformity."
+  [atom]
   (->SimpleVector atom))
 
 (defn gen-simple-vector [atom-gen src ctx]
