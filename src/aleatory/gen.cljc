@@ -4,9 +4,28 @@
 
 (defrecord GenObject [data size])
 
+(defn no-object
+  "Generate a failed [[GenObject]], i.e. the failure of generating
+  an object with `:data` the `reason` of the failure, and of `:size` zero.
+
+  The currently valid reasons are:
+
+  - `:aleatory.gen/not-enough-fuel` if there is not enough fuel left for generating the object
+  - `:aleatory.gen/timeout` if the generation process is taking \"too long\".
+
+  For timeout, the unit of time is the generation of a single number from the underlying PRNG.
+  "
+  [reason]
+  (->GenObject reason 0))
+
+(def not-enough-fuel ::not-enough-fuel)
+
 (defn gen-object [data & {:keys [size]
-                          :or {size 1}}]
+                          :or {size nil}}]
   (->GenObject data size))
+
+(defn no-object? [obj]
+  (zero? (:size obj)))
 
 (defprotocol Generator
   "The generic protocol for generators."

@@ -82,6 +82,13 @@
 (next-bool (make-random 424242))
 (next-bool (second (next-bool (make-random 424242))))
 
+(defn next-bernoulli [src ptrue]
+  "Generate a non-uniform boolean from random source `src` using
+Bernoulli distribution. The probability of drawing value `true`
+is `ptrue`, hence `false` is with probability `(- 1.0 ptrue)`."
+  (let [[x src'] (next-real src)]
+    [(<= x ptrue) src']))
+
 (defn uint32->int
   "Converts an unsigned 32 bits integer (represented as a long) to a signed 32 bits integer."
   [x] (unchecked-int x))
