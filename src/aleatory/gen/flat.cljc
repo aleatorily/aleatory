@@ -87,6 +87,6 @@ The generator is `:sized` and thus consumes, for its element count, the whole re
 
 (g/generate (simple-string \a \c [\e \h] [\A \D]) (prng/make-random 424242) {:fuel 10})
 
-;;; TODO: uniform string with bounded length ?
+;;; TODO: uniform strings of bounded length ?
 ;;; cf. stack overflow question
 ;;; https://stackoverflow.com/questions/3066707/how-do-i-generate-a-random-string-of-up-to-a-certain-length
