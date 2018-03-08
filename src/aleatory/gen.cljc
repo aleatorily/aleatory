@@ -40,3 +40,13 @@ state and updated context.")
  which can be used to recreate the generator, and also
 analyze its properties"))
 
+(defn gen-fmap [f [obj src ctx]]
+  (if (no-object? obj)
+    [obj src ctx]
+    (f obj src ctx)))
+
+(defn gen-fmap-data [f ret]
+  (gen-fmap (fn [obj src ctx] [(assoc obj :data (f (:data obj))) src ctx]) ret))
+
+
+
