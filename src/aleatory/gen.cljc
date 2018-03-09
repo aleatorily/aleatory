@@ -40,6 +40,9 @@ state and updated context.")
  which can be used to recreate the generator, and also
 analyze its properties"))
 
+(defn generator? [x]
+  (instance? Generator x))
+
 (defn gen-fmap [f [obj src ctx]]
   (if (no-object? obj)
     [obj src ctx]

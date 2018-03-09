@@ -6,6 +6,20 @@
   (:refer-clojure :exclude [= < > <= >=])
   )
 
+
+(defn mapkv
+  "Apply the binary function `f` to the `[k, v]` key-value
+  pairs of the map `m`."
+  [f m]
+  (into {} (map (fn [[k v]] (f k v)) m)))
+
+(defn some-kv [pred m]
+  (reduce-kv (fn [res k v]
+               (let [r (pred k v)]
+                 (if r
+                   (reduced r)
+                   res))) nil m))
+
 (defn tuple? [n v]
   (and (vector? v)
        (clojure.core/= (count v) n)))
