@@ -10,6 +10,10 @@
 
   #?(:clj (:import [aleatory.gen Generator])))
 
+;;{
+;; ## Tree grammars
+;;
+;; }
 
 (defn bintree-grammar
   "A grammar for binary trees, with node labels
@@ -42,6 +46,11 @@
    :one [:const 1 :one]
    :two [:build 2 (fn [t1 t2] [:two t1 t2]) :ottree :ottree]
    :three [:build 3 (fn [t1 t2 t3] [:three t1 t2 t3]) :ottree :ottree :ottree]})
+
+;;{
+;; ## Evaluation of functional equation
+;;
+;; }
 
 (declare eval-elem)
 
@@ -78,6 +87,18 @@
 
 (defn eval-grammar [grammar z prev]
   (u/mapkv (fn [ref elem] [ref (eval-elem elem z prev)]) grammar))
+
+
+;;{
+;; ## Singularity Oracle
+;;
+;; We use the simple newton iteration for testing
+;; convergence. A faster iteration could be tried
+;; but it's a compile-time performance issue so that's
+;; not so critical.
+;;
+;; }
+
 
 ;; newton iteration
 (declare iter)
@@ -125,5 +146,185 @@
 (oracle (gentree-grammar identity) 0.0 1.0 0.001 0.000001)
 
 (oracle (bintree-grammar identity) 0.0 1.0 0.001 0.000001)
+
+
+;;{
+;; ## Weighted grammars
+;;
+;; This is an interesting pre-computation.
+;;
+;; }
+
+
+(defn weighted-args [args z weights]
+  (let [eargs (mapv (fn [arg] [arg (eval-elem arg z weights)]) args)
+        total (apply + (map second eargs))]
+    (loop [eargs eargs, acc 0.0, wargs []]
+      (if (seq eargs)
+        (let [[arg weight] (first eargs)
+              acc' (+ acc weight)]
+          (recur (rest eargs) acc' (conj wargs [arg (/ acc' total)])))
+        ;; no more arg
+        wargs))))
+
+(defn weighted-elem [elem z weights]
+  (if (and (vector? elem) (seq elem))
+    (case (first elem)
+      (:either :+ :choice :or)
+      (vec (cons ::either (weighted-args (rest elem) z weights)))
+      (:const :value) (vec (cons ::const (rest elem)))
+      (:build :node) (vec (cons ::build (rest elem)))
+      ;; otherwise
+      elem)))
+
+(defn weighted-grammar [class z weights]
+  (u/mapkv (fn [ref elem] [ref (weighted-elem elem z weights)]) class))
+
+
+(defn compile-grammar [grammar eps-iter eps-div]
+  (let [[z v] (oracle ott-grammar 0.0 1.0 eps-iter eps-div)
+        wgram (weighted-gram ott-grammar z v)]
+    [z v wgram]))
+
+(compile-grammar (bintree-grammar identity) 0.00001 0.000001)
+
+(compile-grammar (gentree-grammar identity) 0.00001 0.000001)
+
+(compile-grammar ott-grammar 0.00001 0.000001)
+
+(defn choose [src choices]
+  (let [[x src'] (prng/next-real src)]
+    (some (fn [[elem proba]]
+            (and (<= x proba) [elem src']))
+          choices)))
+
+(choose (prng/make-random 424242) [[:one 0.5] [:two 0.8] [:three 1.0]])
+
+;;{
+;; ## Generation of size
+;;
+;; }
+
+;; Remark: tail recursive
+(defn gensize [src wgram maxsize elem]
+  (loop [src src, elem elem, size 0, cont '()]
+    (cond
+      ;; tree is too big
+      (>= size maxsize) [-1 src]
+      ;; non-tail recursion
+      (= elem ::recur) (if (seq cont)
+                         (recur src (first cont) size (rest cont))
+                         [size src])
+      ;; maybe a command
+      (and (vector? elem) (seq elem))
+      (case (first elem)
+        ::either (let [[elem' src'] (choose src (rest elem))]
+                   (recur src' elem' size cont))
+        ::const (recur src ::recur (+ size (second elem)) cont)
+        ::build (let [[_ n _ fst & args] elem]
+                  (recur src fst (+ size n) (concat args cont)))
+        ;; else don't know ...
+        (recur src ::recur size cont))
+      :else (if-let [nelem (get wgram elem)]
+              (recur src nelem size cont)
+              ;; We skip all the elements we don't know about
+              (recur src ::recur size cont)))))
+
+(let [[z v wgram] (compile-grammar ott-grammar 0.00001 0.000001)]
+  (gensize (prng/make-random 24242) wgram 1000 :ottree))
+
+(defn gensizes [src wgram maxsize elem]
+  (let [[size src'] (gensize src wgram maxsize elem)]
+    (if (> size 0)
+      (lazy-seq (cons [size src] (gensizes src' wgram maxsize elem)))
+      (recur src' wgram maxsize elem))))
+
+(let [[z v wgram] (compile-grammar ott-grammar 0.00001 0.000001)]
+  (take 20 (map first (gensizes (prng/make-random 24242) wgram 1000 :ottree))))
+
+;;{
+;; ## Tree generation
+;;
+;;}
+
+;; Remark: this function is tail rec, and that was not a walk in the park
+
+(defn gentree-const [csize cvalue size cont]
+  (let [[[buildvec buildcont] & cont'] cont]
+    [::recur (+ size csize) (cons [(conj buildvec cvalue) buildcont] cont')]))
+
+(defn gentree-data [value size cont]
+  (if (seq cont)
+    (let [[[buildargs buildcont] & cont'] cont]
+      [::recur size (cons [(conj buildargs value) buildcont] cont')])
+    (throw (ex-info "Arbitrary data outside of build node" {:data value}))))
+
+(defn gentree-build [bsize bfun bargs size cont]
+  [::recur (+ size bsize) (cons [[] [:build bfun bargs]] cont)])
+
+(defn gentree-make [buildargs bfun bargs size cont]
+  ;; precondition: cont is non-empty
+  (if (seq bargs)
+    [(first bargs) size (cons [buildargs [::build bfun (rest bargs)]] cont)]
+    ;; no more arguments
+    (if (seq cont)
+      (let [[[buildargs' buildcont'] & cont'] cont]
+        [::recur size (cons [(conj buildargs' (apply bfun buildargs)) buildcont'] cont')])
+      [[::result (apply bfun buildargs)] size  cont])))
+
+(defn gentree [src wgram maxsize elem]
+  (loop [src src, elem elem, size 0, cont '()]
+    (cond
+      ;; tree is too big
+      (>= size maxsize) [-1 nil src]
+      ;; non-tail call
+      (= elem ::recur)
+      (if (seq cont)
+        (let [[[buildargs [_ bfun bargs]] & cont'] cont
+              [elem'' size'' cont''] (gentree-make buildargs bfun bargs size cont')]
+          (recur src elem'' size'' cont''))
+        ;; end of recursion
+        [size elem src])
+      ;; recursion
+      (contains? wgram elem)
+      (recur src (get wgram elem) size cont)
+      ;; maybe a command
+      (and (vector? elem) (seq elem))
+      (case (first elem)
+        ::result
+        [size elem src]
+        ::either
+        (let [[elem' src'] (choose src (rest elem))]
+          (recur src' elem' size cont))
+        ::const
+        (let [[_ csize cvalue] elem]
+          (if (seq cont)
+            (let [[elem' size' cont'] (gentree-const csize cvalue size cont)]
+              (recur src elem' size' cont'))
+            ;; direct const result
+            [csize cvalue src]))
+        ::build
+        (let [[_ bsize bfun & bargs] elem
+              [elem' size' cont'] (gentree-build bsize bfun bargs size cont)]
+          (recur src elem' size' cont'))
+        ;; else don't know ...
+        (let [[elem' size' cont'] (gentree-data elem size cont)]
+          (recur src elem' size' cont')))
+      :else ;; arbitrary element
+      (let [[elem' size' cont'] (gentree-data elem size cont)]
+        (recur src elem' size' cont')))))
+
+
+(let [[z v wgram] (compile-grammar ott-grammar 0.00001 0.000001)]
+  (gentree (prng/make-random 24242) wgram 1000 :ottree))
+
+
+(defn boltzmann [src wgram sing elem min-size max-size]
+  (let [[size src'] (first (filter (fn [[size _]] (>= size min-size))
+                                   (gensizes src wgram max-size elem)))
+        [size' tree src''] (gentree src' wgram elem elem)]
+    [size tree src'']))
+
+
 
 
