@@ -277,58 +277,57 @@
         [::recur size (cons [(conj buildargs' (apply bfun buildargs)) buildcont'] cont')])
       [[::result (apply bfun buildargs)] size  cont])))
 
-(defn gentree [src wgram elem]
-  (loop [src src, elem elem, size 0, cont '()]
+(defn gentree [ctx wgram elem]
+  (loop [ctx ctx, elem elem, size 0, cont '()]
     (cond
       ;; non-tail call
       (= elem ::recur)
       (if (seq cont)
         (let [[[buildargs [_ bfun bargs]] & cont'] cont
               [elem'' size'' cont''] (gentree-make buildargs bfun bargs size cont')]
-          (recur src elem'' size'' cont''))
+          (recur ctx elem'' size'' cont''))
         ;; end of recursion
-        [size elem src])
+        [size elem ctx])
       ;; recursion
       (contains? wgram elem)
-      (recur src (get wgram elem) size cont)
+      (recur ctx (get wgram elem) size cont)
       ;; maybe a command
       (and (vector? elem) (seq elem))
       (case (first elem)
         ::result
-        [size elem src]
+        [size elem ctx]
         ::either
-        (let [[elem' src'] (choose src (rest elem))]
-          (recur src' elem' size cont))
+        (let [[elem' src'] (choose (:source ctx) (rest elem))]
+          (recur (assoc ctx :source src') elem' size cont))
         ::const
         (let [[_ csize cvalue] elem]
           (if (seq cont)
             (let [[elem' size' cont'] (gentree-const csize cvalue size cont)]
-              (recur src elem' size' cont'))
+              (recur ctx elem' size' cont'))
             ;; direct const result
-            [csize cvalue src]))
+            [csize cvalue ctx]))
         ::build
         (let [[_ bsize bfun & bargs] elem
               [elem' size' cont'] (gentree-build bsize bfun bargs size cont)]
-          (recur src elem' size' cont'))
+          (recur ctx elem' size' cont'))
         ::inner
         (throw (ex-info "Inner generator not implemented" {:elem elem}))
         ;; else don't know ...
         (let [[elem' size' cont'] (gentree-data elem size cont)]
-          (recur src elem' size' cont')))
+          (recur ctx elem' size' cont')))
       :else ;; arbitrary element
       (let [[elem' size' cont'] (gentree-data elem size cont)]
-        (recur src elem' size' cont')))))
+        (recur ctx elem' size' cont')))))
 
 
 (let [[z v wgram] (compile-grammar ott-grammar 0.00001 0.000001)]
-  (gentree (prng/make-random 24242) wgram :ottree))
+  (gentree {:source (prng/make-random 24242)} wgram :ottree))
 
-
-(defn boltzmann [src wgram sing elem min-size max-size]
+(defn boltzmann [ctx wgram sing elem min-size max-size]
   (let [[size src'] (first (filter (fn [[size _]] (>= size min-size))
-                                   (gensizes src wgram max-size elem)))
-        [size' tree src''] (gentree src' wgram elem elem)]
-    [size tree src'']))
+                                   (gensizes (:source ctx) wgram max-size elem)))
+        [size' tree ctx'] (gentree (assoc ctx :source src') wgram elem elem)]
+    [size tree ctx']))
 
 
 
