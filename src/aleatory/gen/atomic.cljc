@@ -39,23 +39,22 @@
   []
   (->Const nil))
 
-(defn atomic-gen [val src ctx]
-  (if-let [fuel (get ctx :fuel)]
-    (if (> fuel 0)
-      [(g/gen-object val :size 1) src (update ctx :fuel dec)]
-      [(g/no-object g/not-enough-fuel) src ctx])
-    ;; fuel missing
-    (throw (ex-info "Cannot generate object: missing fuel in context" {:ctx ctx}))))
+(defn atomic-gen [val ctx]
+  (if (> (:fuel ctx) 0)
+    [(g/gen-object val :size 1) (update ctx :fuel dec)]
+    [(g/no-object g/not-enough-fuel) ctx]))
 
 (extend-type Const
   g/Generator
-  (generate [gen src ctx]
-    (atomic-gen (:const gen) src ctx))
+  (generate [gen ctx]
+    (atomic-gen (:const gen) ctx))
   (describe [_] const-descr))
 
-(g/generate (->Const 42) (prng/make-random 424242) {:fuel 1})
+(g/generate (->Const 42)  {:fuel 1
+                           :source (prng/make-random 424242)})
 
-(g/generate (->Const 42) (prng/make-random 424242) {:fuel 0})
+(g/generate (->Const 42) {:fuel 0
+                          :source (prng/make-random 424242)})
 
 ;;{
 ;; ## Generation of booleans
@@ -79,12 +78,13 @@
 
 (extend-type UnifBoolean
   g/Generator
-  (generate [gen src ctx]
-    (let [[b src'] (prng/next-bool src)]
-      (atomic-gen b src' ctx)))
+  (generate [gen ctx]
+    (let [[b src'] (prng/next-bool (:source ctx))]
+      (atomic-gen b (assoc ctx :source src'))))
   (describe [gen] unif-boolean-descr))
 
-(g/generate (->UnifBoolean) (prng/make-random 424242) {:fuel 1})
+(g/generate (->UnifBoolean)  {:fuel 1
+                              :source (prng/make-random 424242)})
 
 (defrecord BernoulliBoolean [ptrue])
 
@@ -103,12 +103,13 @@
 
 (extend-type BernoulliBoolean
   g/Generator
-  (generate [gen src ctx]
-    (let [[b src'] (prng/next-bernoulli src (:ptrue gen))]
-      (atomic-gen b src' ctx)))
+  (generate [gen ctx]
+    (let [[b src'] (prng/next-bernoulli (:source ctx) (:ptrue gen))]
+      (atomic-gen b (assoc ctx :source src'))))
   (describe [gen] bernoulli-boolean-descr))
 
-(g/generate (->BernoulliBoolean 0.9) (prng/make-random 424242) {:fuel 1})
+(g/generate (->BernoulliBoolean 0.9) {:fuel 1
+                                      :source (prng/make-random 424242)})
 
 ;;{
 ;; ## Generation of numbers
@@ -132,12 +133,13 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 
 (extend-type UnifReal
   g/Generator
-  (generate [gen src ctx]
-    (let [[x src'] (prng/next-real src)]
-      (atomic-gen x src' ctx)))
+  (generate [gen ctx]
+    (let [[x src'] (prng/next-real (:source ctx))]
+      (atomic-gen x (assoc ctx :source src'))))
   (describe [gen] unif-real-descr))
 
-(g/generate (->UnifReal) (prng/make-random 424242) {:fuel 1})
+(g/generate (->UnifReal) {:fuel 1
+                          :source (prng/make-random 424242)})
 
 ;;{
 ;; ## Generation of characters
@@ -324,19 +326,23 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 (u/except (select-char 10 2 [[3 5] [6 9]] (sorted-set \a \b \c) [[\e] \g [\A \D]]) :bang!)
 
 
-(defn gen-unif-char [gen src ctx]
+(defn gen-unif-char [gen ctx]
   (let [[imax iset iranges] (alpha-indices (:alpha gen))
-        [ind src'] (prng/next-int src imax)
+        [ind src'] (prng/next-int (:source ctx) imax)
         ch (select-char ind iset iranges (:chars (:alpha gen)) (:ranges (:alpha gen)))]
-    (atomic-gen ch src' ctx)))
+    (atomic-gen ch (assoc ctx :source src'))))
 
-(gen-unif-char (unif-char \a \b \c) (prng/make-random 424242) {:fuel 1})
-(gen-unif-char (unif-char \a \b \c [\e \g]) (prng/make-random 424242) {:fuel 1})
+(gen-unif-char (unif-char \a \b \c)  {:fuel 1
+                                      :source (prng/make-random 424242)})
+
+(gen-unif-char (unif-char \a \b \c [\e \g]) {:fuel 1
+                                             :source (prng/make-random 424242)})
 
 (extend-type UnifChar
   g/Generator
-  (generate [gen src ctx] (gen-unif-char gen src ctx))
+  (generate [gen ctx] (gen-unif-char gen ctx))
   (describe [gen] unif-char-descr))
 
-(g/generate (unif-char \a \b \c) (prng/make-random 424242) {:fuel 1})
+(g/generate (unif-char \a \b \c) {:fuel 1
+                                  :source (prng/make-random 424242)})
 

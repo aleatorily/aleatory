@@ -29,27 +29,27 @@
 
 (defprotocol Generator
   "The generic protocol for generators."
-  (generate [gen src ctx]
+  (generate [gen ctx]
     "Generates an object using the generator `gen` from
- random source `src` and generation context `ctx`.
-This returns a triple `[obj src' ctx']` of the generated object
+ generation context `ctx`.
+This returns a pair `[obj ctx']` of the generated object
 as a [[GenObject]] record together with the next random source
 state and updated context.")
   (describe [gen]
     "Returns a description of the generator as a map,
  which can be used to recreate the generator, and also
-analyze its properties"))
+analyze its properties."))
 
 (defn generator? [x]
   (instance? Generator x))
 
-(defn gen-fmap [f [obj src ctx]]
+(defn gen-fmap [f [obj ctx]]
   (if (no-object? obj)
-    [obj src ctx]
-    (f obj src ctx)))
+    [obj ctx]
+    (f obj ctx)))
 
 (defn gen-fmap-data [f ret]
-  (gen-fmap (fn [obj src ctx] [(assoc obj :data (f (:data obj))) src ctx]) ret))
+  (gen-fmap (fn [obj ctx] [(assoc obj :data (f (:data obj))) ctx]) ret))
 
 
 
