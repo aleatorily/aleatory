@@ -39,22 +39,33 @@
   []
   (->Const nil))
 
+(defn prepare-atomic-context [ctx]
+  (if-let [size (get ctx :size)]
+    (if (and (integer? size)
+             (> size 0))
+      [true ctx]
+      [false {:message "The :size field of context should be a positive integer"
+              :size size}])
+    [false {:message "Missing :size field in context." :ctx ctx}]))
+
 (defn atomic-gen [val ctx]
-  (if (> (:fuel ctx) 0)
-    [(g/gen-object val :size 1) (update ctx :fuel dec)]
-    [(g/no-object g/not-enough-fuel) ctx]))
+  (if (> (:size ctx) 0)
+    [(g/gen-object val {:size 1}) (update ctx :size dec)]
+    ;; XXX this cannot happen because of the context preparation
+    [(g/no-object :g/size-too-small {:target-size (:size ctx)
+                                     :min-size 1}) ctx]))
 
 (extend-type Const
   g/Generator
-  (generate [gen ctx]
-    (atomic-gen (:const gen) ctx))
-  (describe [_] const-descr))
+  (describe [_] const-descr)
+  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (sample [gen ctx]
+    (atomic-gen (:const gen) ctx)))
 
-(g/generate (->Const 42)  {:fuel 1
-                           :source (prng/make-random 424242)})
+(g/generate (->Const 42) :size 1 :seed 424242)
+(u/except-info (g/generate (->Const 42) :seed 424242))
+(g/generate (->Const 42) :size 1)
 
-(g/generate (->Const 42) {:fuel 0
-                          :source (prng/make-random 424242)})
 
 ;;{
 ;; ## Generation of booleans

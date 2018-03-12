@@ -3,8 +3,7 @@
 
   Remark: the functions in this namespace should not be imported undecorated."
 
-  (:refer-clojure :exclude [= < > <= >=])
-  )
+  (:refer-clojure :exclude [= < > <= >=]))
 
 
 (defn mapkv
@@ -62,10 +61,10 @@
 
 #?(:clj (defmacro except [expr catch-form]
           `(try ~expr
-                (catch Exception ~'_ ~catch-form)))
+                (catch ExceptionInfo ~'_ ~catch-form)))
    :cljs (defmacro except [expr catch-form]
           `(try ~expr
-                (catch js/Object ~'_ ~catch-form))))
+                (catch ExceptionInfo ~'_ ~catch-form))))
 
 ;; (macroexpand-1 '(except (/ 2 0) 42))
 ;; => (try (/ 2 0) (catch java.lang.Exception _ 42))
@@ -79,10 +78,10 @@
 
 #?(:clj (defmacro except-info [expr]
           `(try ~expr
-                (catch Exception e# (assoc (ex-data e#) :message (.getMessage e#)))))
+                (catch ExceptionInfo e# (assoc (ex-data e#) :message (.getMessage e#)))))
    :cljs (defmacro except-info [expr catch-form]
           `(try ~expr
-                (catch js/Object e# (assoc (ex-data e#) :message (.getMessage e#))))))
+                (catch ExceptionInfo e# (assoc (ex-data e#) :message (.getMessage e#))))))
 
 ;; (except-info (throw (ex-info "the message" {:the :data})))
 ;; => {:the :data, :message "the message"}

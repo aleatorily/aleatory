@@ -1,47 +1,65 @@
 (ns aleatory.gen
   "The common functionalities of random generators
-  are defined in this namespace.")
+  are defined in this namespace."
 
-(defrecord GenObject [data size])
+  (:require [aleatory.prng.source :as prng]))
+
+(defrecord GenObject [data metadata])
 
 (defn no-object
   "Generate a failed [[GenObject]], i.e. the failure of generating
-  an object with `:data` the `reason` of the failure, and of `:size` zero.
+  an object with `:data` the reason of the failure and as `:metadata` some further
+  information map.
 
   The currently valid reasons are:
-
-  - `:aleatory.gen/not-enough-fuel` if there is not enough fuel left for generating the object
+  
+  - `:aleatory.gen/size-too-small` if the target size is too small for generating the object.
   - `:aleatory.gen/timeout` if the generation process is taking \"too long\".
 
   For timeout, the unit of time is the generation of a single number from the underlying PRNG.
   "
-  [reason]
-  (->GenObject reason 0))
-
-(def not-enough-fuel ::not-enough-fuel)
-
-(defn gen-object [data & {:keys [size]
-                          :or {size nil}}]
-  (->GenObject data size))
+  [reason info]
+  ;; TODO add some checks
+  (->GenObject reason (assoc info ::no-object true)))
 
 (defn no-object? [obj]
-  (zero? (:size obj)))
+  (get (:metadata obj) ::no-object false))
+
+(defn gen-object [data info]
+  ;; TODO add some checks
+  (->GenObject data info))
 
 (defprotocol Generator
   "The generic protocol for generators."
-  (generate [gen ctx]
+  (describe [gen]
+    "Returns a description of the generator as a map,
+ which can be used to recreate the generator, and also
+analyze its properties.")
+  (prepare-context [gen ctx]
+    "Checks the provided context for specific generator requirements.
+The returned information is a pair `[ok res]` with `ok` a boolean flag
+which is `true` is the context is accepted. The result `res` is in this
+case a potentially updated version of `ctx`. In case of an error (e.g. a
+ requirement not satisfied), the flag is `false` and the result is an
+explanation string for the failure.")
+  (sample [gen ctx]
     "Generates an object using the generator `gen` from
  generation context `ctx`.
 This returns a pair `[obj ctx']` of the generated object
 as a [[GenObject]] record together with the next random source
-state and updated context.")
-  (describe [gen]
-    "Returns a description of the generator as a map,
- which can be used to recreate the generator, and also
-analyze its properties."))
+state and updated context."))
 
 (defn generator? [x]
   (instance? Generator x))
+
+(defn samples [gen nb-samples ctx]
+  (if (zero? nb-samples)
+    ()
+    (lazy-seq (let [[obj ctx'] (sample gen ctx)]
+                (if (no-object? obj)
+                  (list [obj ctx'])
+                  (cons [obj ctx'] (samples (dec nb-samples) ctx')))))))
+
 
 (defn gen-fmap [f [obj ctx]]
   (if (no-object? obj)
@@ -52,4 +70,65 @@ analyze its properties."))
   (gen-fmap (fn [obj ctx] [(assoc obj :data (f (:data obj))) ctx]) ret))
 
 
+;; this somewhat fuzzy parameterization is
+;; somewhat non-idiomatic, but it makes the
+;; main generate function quite user-friendly.
+(declare parse-gen-opts)
+(declare parse-gen-positional)
+(declare prepare-gen-context)
 
+(defn generate [gen & opts]
+  (let [[args ctx] (parse-gen-opts opts)
+        positional (parse-gen-positional args)
+        ctx' (prepare-gen-context ctx)
+        [ok ctx''] (prepare-context gen ctx')]
+    (when (not ok)
+      (throw (ex-info "Cannot generate object: bad generator context"
+                      (assoc ctx'' :context ctx'))))
+    (if-let [nb-samples (get positional :nb-samples)]
+      (samples nb-samples gen ctx')
+      (sample gen ctx'))))
+
+(defn parse-gen-opts [opts]
+  (loop [opts opts, args [], ctx {}]
+    (if (seq opts)
+      (let [arg (first opts)]
+        (if (keyword? arg)
+          (if (seq opts)
+            (recur (rest (rest opts)) args (assoc ctx arg (second opts)))
+            (throw (ex-info "Missing value for option" {:option arg})))
+          ;; not a keyword? positional
+          (recur (rest opts) (conj args arg) ctx)))
+      ;; no more opts
+      [args ctx])))
+
+(defn parse-gen-positional [args]
+  (if (seq args)
+    (if (seq (rest args))
+      (throw (ex-info "Too many positional arguments"{:args args}))
+      (let [nb-samples (first args)]
+        (if (and (integer? nb-samples) (>= nb-samples 1))
+          {:nb-samples nb-samples}
+          (throw (ex-info "First (optional) positional argument should be
+a strictly positive integer (number of samples)"{:argument nb-samples})))))
+    ;; no argument
+    {}))
+
+;; this can be redefined locally if needed
+;; (dynamic var)
+(def ^:dynamic *reseed-function* prng/random-seed)
+
+(defn prepare-gen-context [ctx]
+  (let [ctx (if-let [seed (get ctx :seed)]
+              (if (integer? seed)
+                ctx
+                (throw (ex-info "Context option :seed should be an integer." {:seed seed})))
+              (if-let [src (get ctx :source)]
+                (assoc ctx :seed (:seed src))
+                (assoc ctx :seed (*reseed-function*))))        
+        ctx (if-let [src (get ctx :source)]
+              (if (prng/random-source? src)
+                ctx
+                (throw (ex-info "Context option :source should be a RandomSource" {:source src})))
+              (assoc ctx :source (prng/make-random (:seed ctx))))]
+    ctx))

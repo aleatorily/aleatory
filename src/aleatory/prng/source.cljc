@@ -29,6 +29,9 @@
 
 (defrecord RandomSource [prng seed count last index])
 
+(defn random-source? [t]
+  (instance? RandomSource t))
+
 ;; XXX: negative values are not taken into account
 (defn random-seed []
   #?(:clj (rand-int Integer/MAX_VALUE)
