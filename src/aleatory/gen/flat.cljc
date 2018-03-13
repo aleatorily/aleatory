@@ -34,16 +34,26 @@ This generator also preserves uniformity."})
   [atom]
   (->SimpleVector atom))
 
+(defn prepare-flat-context [gen ctx]
+  (let [ctx (g/prepare-context (:atom gen) ctx)]
+    (if-let [size (get ctx :size)]
+      (if (and (integer? size)
+               (>= size 0))
+        [true ctx]
+        [false {:message "The :size field of context should be a positive integer"
+                :size size}])
+      [false {:message "Missing :size field in context." :ctx ctx}])))
+
 (defn gen-simple-vector [atom-gen ctx]
   (loop [ctx ctx, v []]
-    (if (zero? (:fuel ctx))
-      [(g/gen-object v :size (count v)) ctx]
+    (if (zero? (:size ctx))
+      [(g/gen-object v {:size (count v)}) ctx]
       (let [[obj ctx' :as ret] (g/generate atom-gen ctx)]
         (cond
-          ;; wrong fuel consumption
-          (not= (:fuel ctx') (dec (:fuel ctx)))
+          ;; wrong size consumption
+          (not= (:size ctx') (dec (:size ctx)))
           (throw (ex-info "Wrong non-atomic fuel consumption." {:pre-ctx ctx
-                                                                :post-ctx ctx}))
+                                                                :post-ctx ctx'}))
           ;; object not generated
           (g/no-object? obj) ret
           
@@ -53,13 +63,13 @@ This generator also preserves uniformity."})
 
 (extend-type SimpleVector
   g/Generator
-  (generate [gen ctx] (gen-simple-vector (:atom gen) ctx))
+  (prepare-context [gen ctx] (prepare-flat-context gen ctx))
+  (sample [gen ctx] (gen-simple-vector (:atom gen) ctx))
   (describe [gen] (assoc simple-vector-descr
                          :elements (g/describe (:atom gen)))))
 
 (g/generate (simple-vector (aleatory.gen.atomic/unif-boolean))
-            {:fuel 10
-             :source (prng/make-random 424242)})
+            :size 10 :seed 424242)
 
 ;;{
 ;; ## Simple strings
