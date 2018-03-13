@@ -311,7 +311,17 @@
               [elem' size' cont'] (gentree-build bsize bfun bargs size cont)]
           (recur ctx elem' size' cont'))
         ::inner
-        (throw (ex-info "Inner generator not implemented" {:elem elem}))
+        (let [[label labelgen] (if (= (count elem) 3)
+                                 [(second elem) (nth elem 2)]
+                                 [:inner (second elem)])
+              [obj inner-ctx'] (gentree-inner labelgen (get ctx label))
+              ctx' (assoc ctx label inner-ctx')]
+          (if (g/no-object? obj)
+            [0 obj ctx']
+            (if (seq cont)
+              (let [[elem' size' cont'] (gentree-const 0 (:data obj) size cont)]
+                (recur ctx' elem' size' cont'))
+              [size (:data obj) ctx'])))
         ;; else don't know ...
         (let [[elem' size' cont'] (gentree-data elem size cont)]
           (recur ctx elem' size' cont')))
@@ -329,6 +339,17 @@
         [size' tree ctx'] (gentree (assoc ctx :source src') wgram elem elem)]
     [size tree ctx']))
 
+(defrecord TreeGenerator [wgrammar weights sing])
 
+(def treegen-descr
+  {:generator ::treegen
+   :props #{:uniform :deep :controlled}
+   :params {:grammar "The tree grammar used for generation."}
+   :doc "A generator for tree structures based on boltzmann sampling. The structure is described by the `:grammar` parameter.
+The generator is `:controlled` and thus provides some control over the obtained size. In practice it will consume up-to the allowed `size` value. This generator is uniform (as long as the label generators are also uniform)."})
 
+(defn treegen [grammar eps-iter eps-div]
+  (let [[sing weights wgrammar] (compile-grammar grammar eps-iter eps-div)]
+    (->TreeGenerator wgrammar weights sing)))
 
+(defn treegen-prepare-context [])
