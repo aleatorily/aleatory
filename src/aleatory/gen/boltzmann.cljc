@@ -339,7 +339,7 @@
         [size' tree ctx'] (gentree (assoc ctx :source src') wgram elem elem)]
     [size tree ctx']))
 
-(defrecord TreeGenerator [wgrammar weights sing])
+(defrecord TreeGenerator [wgrammar root weights sing])
 
 (def treegen-descr
   {:generator ::treegen
@@ -348,28 +348,67 @@
    :doc "A generator for tree structures based on boltzmann sampling. The structure is described by the `:grammar` parameter.
 The generator is `:controlled` and thus provides some control over the obtained size. In practice it will consume up-to the allowed `size` value. This generator is uniform (as long as the label generators are also uniform)."})
 
-(defn treegen [grammar eps-iter eps-div]
+(defn treegen [grammar root eps-iter eps-div]
   (let [[sing weights wgrammar] (compile-grammar grammar eps-iter eps-div)]
-    (->TreeGenerator wgrammar weights sing)))
+    (->TreeGenerator wgrammar root weights sing)))
 
-(defn treegen-prepare-context [gen ctx]
-  (let [inner-gens (reduce-kv (fn [gens k elem]
-                                (if (and (vector? elem)
-                                         (= (first elem) ::inner))
-                                  (if (= (count elem) 3)
-                                    (assoc gens (second elem) (nth elem 2))
-                                    (assoc gens :inner (second elem)))
-                                  gens)) {})
-        [ok ctx'] (reduce-kv (fn [[_ ctx] label gen]
-                               (if-let [lblctx (get ctx label)]
-                                 (let [[ok ctx'] (g/prepare-context gen lblctx)]
-                                   (if (not ok)
-                                     (reduced [ok ctx'])
-                                     [true (assoc ctx label ctx')]))
-                                 ;; no label
-                                 [false {:message "Missing label for inner generator in context"
-                                         :label label
-                                         :context ctx}])))]
-    [ok ctx']))
+;; by default 10% approximation of size
+(def ^:dynamic *min-size-ratio* 0.1)
+
+(defn prepare-size-context [ctx]
+  (let [size (get ctx :size)
+        min-size (get ctx :min-size)
+        ratio-size (get ctx :ratio-size)
+        max-size (get ctx :max-size)
+        size (or size max-size)
+        max-size (or max-size size)
+        min-size (or min-size (and max-size (* max-size (or ratio-size *min-size-ratio*))))]
+    (if (nil? max-size)
+      [false {:message "Missing :size or :max-size in context."
+              :context ctx}]
+      [true (assoc ctx
+                   :size size
+                   :min-size min-size
+                   :max-size max-size)])))
+
+(defn prepare-treegen-context [gen ctx]
+  (let [[ok ctx] (prepare-size-context ctx)]
+    (if (not ok)
+      [ok ctx]
+      (let [inner-gens (reduce-kv (fn [gens k elem]
+                                    (if (and (vector? elem)
+                                             (= (first elem) ::inner))
+                                      (if (= (count elem) 3)
+                                        (assoc gens (second elem) (nth elem 2))
+                                        (assoc gens :inner (second elem)))
+                                      gens)) {})
+            [ok ctx'] (reduce-kv (fn [[_ ctx] label gen]
+                                   (if-let [lblctx (get ctx label)]
+                                     (let [[ok ctx'] (g/prepare-context gen lblctx)]
+                                       (if (not ok)
+                                         (reduced [ok ctx'])
+                                         [true (assoc ctx label ctx')]))
+                                     ;; no label
+                                     [false {:message "Missing label for inner generator in context"
+                                             :label label
+                                             :context ctx}])))]
+        [ok ctx']))))
+
+(extend-type TreeGenerator
+  g/Generator
+  (prepare-context [gen ctx] (prepare-treegen-context gen ctx))
+  (sample [gen ctx]
+    (let [[size tree ctx'] (boltzmann ctx
+                                      (:wgrammar gen)
+                                      (:singularity gen)
+                                      (:root gen)
+                                      (:min-size ctx)
+                                      (:max-size ctx))]
+      (cond
+        (g/no-object? tree) [tree ctx']
+        (< size 0) [(g/no-object ::size-not-found {:message "Boltzmann sampling failure."}) ctx']
+        :else
+        [(g/gen-object tree {:size size})])))
+  (describe [gen] treegen-descr))
 
 
