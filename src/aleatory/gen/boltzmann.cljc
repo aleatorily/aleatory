@@ -336,7 +336,7 @@
 (defn boltzmann [ctx wgram sing elem min-size max-size]
   (let [[size src'] (first (filter (fn [[size _]] (>= size min-size))
                                    (gensizes (:source ctx) wgram max-size elem)))
-        [size' tree ctx'] (gentree (assoc ctx :source src') wgram elem elem)]
+        [size' tree ctx'] (gentree (assoc ctx :source src') wgram elem)]
     [size tree ctx']))
 
 (defrecord TreeGenerator [wgrammar root weights sing])
@@ -375,13 +375,13 @@ The generator is `:controlled` and thus provides some control over the obtained 
   (let [[ok ctx] (prepare-size-context ctx)]
     (if (not ok)
       [ok ctx]
-      (let [inner-gens (reduce-kv (fn [gens k elem]
+      (let [inner-gens (reduce-kv (fn [gens _ elem]
                                     (if (and (vector? elem)
                                              (= (first elem) ::inner))
                                       (if (= (count elem) 3)
                                         (assoc gens (second elem) (nth elem 2))
                                         (assoc gens :inner (second elem)))
-                                      gens)) {})
+                                      gens)) {} (:wgrammar gen))
             [ok ctx'] (reduce-kv (fn [[_ ctx] label gen]
                                    (if-let [lblctx (get ctx label)]
                                      (let [[ok ctx'] (g/prepare-context gen lblctx)]
@@ -391,13 +391,14 @@ The generator is `:controlled` and thus provides some control over the obtained 
                                      ;; no label
                                      [false {:message "Missing label for inner generator in context"
                                              :label label
-                                             :context ctx}])))]
+                                             :context ctx}])) [true ctx] (:grammar gen))]
         [ok ctx']))))
 
 (extend-type TreeGenerator
   g/Generator
   (prepare-context [gen ctx] (prepare-treegen-context gen ctx))
   (sample [gen ctx]
+    ;; (println "ctx=" ctx)
     (let [[size tree ctx'] (boltzmann ctx
                                       (:wgrammar gen)
                                       (:singularity gen)
@@ -411,4 +412,13 @@ The generator is `:controlled` and thus provides some control over the obtained 
         [(g/gen-object tree {:size size})])))
   (describe [gen] treegen-descr))
 
+(defn treegen [grammar root eps-iter eps-div]
+  (let [[sing weights wgrammar] (compile-grammar grammar eps-iter eps-div)]
+    (->TreeGenerator wgrammar root weights sing)))
 
+
+(g/generate (treegen ott-grammar :ottree 0.001 0.0001) :min-size 10 :max-size 40 :seed 424242)
+;; (g/generate (treegen ott-grammar :ottree 0.001 0.0001) :size 40 :seed 424242)
+
+(g/generate (treegen (bintree-grammar (atomic/unif-real))
+                     :bintree 0.001 0.00001) :min-size 10 :max-size 40 :seed 424242)
