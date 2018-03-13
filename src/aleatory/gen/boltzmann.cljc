@@ -314,7 +314,7 @@
         (let [[label labelgen] (if (= (count elem) 3)
                                  [(second elem) (nth elem 2)]
                                  [:inner (second elem)])
-              [obj inner-ctx'] (gentree-inner labelgen (get ctx label))
+              [obj inner-ctx'] (g/sample labelgen (get ctx label))
               ctx' (assoc ctx label inner-ctx')]
           (if (g/no-object? obj)
             [0 obj ctx']
@@ -352,4 +352,24 @@ The generator is `:controlled` and thus provides some control over the obtained 
   (let [[sing weights wgrammar] (compile-grammar grammar eps-iter eps-div)]
     (->TreeGenerator wgrammar weights sing)))
 
-(defn treegen-prepare-context [])
+(defn treegen-prepare-context [gen ctx]
+  (let [inner-gens (reduce-kv (fn [gens k elem]
+                                (if (and (vector? elem)
+                                         (= (first elem) ::inner))
+                                  (if (= (count elem) 3)
+                                    (assoc gens (second elem) (nth elem 2))
+                                    (assoc gens :inner (second elem)))
+                                  gens)) {})
+        [ok ctx'] (reduce-kv (fn [[_ ctx] label gen]
+                               (if-let [lblctx (get ctx label)]
+                                 (let [[ok ctx'] (g/prepare-context gen lblctx)]
+                                   (if (not ok)
+                                     (reduced [ok ctx'])
+                                     [true (assoc ctx label ctx')]))
+                                 ;; no label
+                                 [false {:message "Missing label for inner generator in context"
+                                         :label label
+                                         :context ctx}])))]
+    [ok ctx']))
+
+
