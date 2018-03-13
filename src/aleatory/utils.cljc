@@ -61,7 +61,7 @@
 
 #?(:clj (defmacro except [expr catch-form]
           `(try ~expr
-                (catch ExceptionInfo ~'_ ~catch-form)))
+                (catch clojure.lang.ExceptionInfo ~'_ ~catch-form)))
    :cljs (defmacro except [expr catch-form]
           `(try ~expr
                 (catch ExceptionInfo ~'_ ~catch-form))))
@@ -78,7 +78,7 @@
 
 #?(:clj (defmacro except-info [expr]
           `(try ~expr
-                (catch ExceptionInfo e# (assoc (ex-data e#) :message (.getMessage e#)))))
+                (catch clojure.lang.ExceptionInfo e# (assoc (ex-data e#) :message (.getMessage e#)))))
    :cljs (defmacro except-info [expr catch-form]
           `(try ~expr
                 (catch ExceptionInfo e# (assoc (ex-data e#) :message (.getMessage e#))))))

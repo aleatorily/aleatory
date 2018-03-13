@@ -63,7 +63,7 @@
     (atomic-gen (:const gen) ctx)))
 
 (g/generate (->Const 42) :size 1 :seed 424242)
-(u/except-info (g/generate (->Const 42) :seed 424242))
+;; (u/except-info (g/generate (->Const 42) :seed 424242))
 (g/generate (->Const 42) :size 1)
 
 
@@ -89,18 +89,18 @@
 
 (extend-type UnifBoolean
   g/Generator
-  (generate [gen ctx]
+  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (sample [gen ctx]
     (let [[b src'] (prng/next-bool (:source ctx))]
       (atomic-gen b (assoc ctx :source src'))))
-  (describe [gen] unif-boolean-descr))
+  (describe [_] unif-boolean-descr))
 
-(g/generate (->UnifBoolean)  {:fuel 1
-                              :source (prng/make-random 424242)})
+(g/generate (->UnifBoolean)  :size 1 :seed 424242)
 
 (defrecord BernoulliBoolean [ptrue])
 
 (def bernoulli-boolean-descr
-  {:generator ::bernoulli-boolean
+  {:generator ::bernoulqli-boolean
    :props #{:non-uniform :atomic}
    :params {:ptrue "The probability of drawing the `true` value."}
    :doc "Draw a boolean (`true` or `false`) with probability `:ptrue` at random."})
@@ -114,13 +114,13 @@
 
 (extend-type BernoulliBoolean
   g/Generator
-  (generate [gen ctx]
+  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (sample [gen ctx]
     (let [[b src'] (prng/next-bernoulli (:source ctx) (:ptrue gen))]
       (atomic-gen b (assoc ctx :source src'))))
   (describe [gen] bernoulli-boolean-descr))
 
-(g/generate (->BernoulliBoolean 0.9) {:fuel 1
-                                      :source (prng/make-random 424242)})
+(g/generate (->BernoulliBoolean 0.9) :size 1 :seed 424242)
 
 ;;{
 ;; ## Generation of numbers
@@ -144,13 +144,13 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 
 (extend-type UnifReal
   g/Generator
-  (generate [gen ctx]
+  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (sample [gen ctx]
     (let [[x src'] (prng/next-real (:source ctx))]
       (atomic-gen x (assoc ctx :source src'))))
   (describe [gen] unif-real-descr))
 
-(g/generate (->UnifReal) {:fuel 1
-                          :source (prng/make-random 424242)})
+(g/generate (->UnifReal) :size 1 :seed 424242)
 
 ;;{
 ;; ## Generation of characters
@@ -334,7 +334,7 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 (select-char 7 2 [[3 5] [6 9]] (sorted-set \a \b \c) [[\e \g] [\A \D]])
 (select-char 8 2 [[3 5] [6 9]] (sorted-set \a \b \c) [[\e \g] [\A \D]])
 (select-char 9 2 [[3 5] [6 9]] (sorted-set \a \b \c) [[\e \g] [\A \D]])
-(u/except (select-char 10 2 [[3 5] [6 9]] (sorted-set \a \b \c) [[\e] \g [\A \D]]) :bang!)
+;; (u/except (select-char 10 2 [[3 5] [6 9]] (sorted-set \a \b \c) [[\e \g] [\A \D]]) :bang!)
 
 
 (defn gen-unif-char [gen ctx]
@@ -343,17 +343,17 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
         ch (select-char ind iset iranges (:chars (:alpha gen)) (:ranges (:alpha gen)))]
     (atomic-gen ch (assoc ctx :source src'))))
 
-(gen-unif-char (unif-char \a \b \c)  {:fuel 1
+(gen-unif-char (unif-char \a \b \c)  {:size 1
                                       :source (prng/make-random 424242)})
 
-(gen-unif-char (unif-char \a \b \c [\e \g]) {:fuel 1
+(gen-unif-char (unif-char \a \b \c [\e \g]) {:size 1
                                              :source (prng/make-random 424242)})
 
 (extend-type UnifChar
   g/Generator
-  (generate [gen ctx] (gen-unif-char gen ctx))
+  (prepare-context [_ ctx] (prepare-atomic-context ctx))  
+  (sample [gen ctx] (gen-unif-char gen ctx))
   (describe [gen] unif-char-descr))
 
-(g/generate (unif-char \a \b \c) {:fuel 1
-                                  :source (prng/make-random 424242)})
+(g/generate (unif-char \a \b \c) :size 1 :seed 424242)
 
