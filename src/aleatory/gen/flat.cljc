@@ -35,20 +35,19 @@ This generator also preserves uniformity."})
   (->SimpleVector atom))
 
 (defn prepare-flat-context [gen ctx]
-  (let [ctx (g/prepare-context (:atom gen) ctx)]
-    (if-let [size (get ctx :size)]
-      (if (and (integer? size)
-               (>= size 0))
-        [true ctx]
-        [false {:message "The :size field of context should be a positive integer"
-                :size size}])
-      [false {:message "Missing :size field in context." :ctx ctx}])))
+  (if-let [size (get ctx :size)]
+    (if (and (integer? size)
+             (>= size 0))
+      [true ctx]
+      [false {:message "The :size field of context should be a positive integer"
+              :size size}])
+    [false {:message "Missing :size field in context." :ctx ctx}]))
 
 (defn gen-simple-vector [atom-gen ctx]
   (loop [ctx ctx, v []]
     (if (zero? (:size ctx))
       [(g/gen-object v {:size (count v)}) ctx]
-      (let [[obj ctx' :as ret] (g/generate atom-gen ctx)]
+      (let [[obj ctx' :as ret] (g/sample atom-gen ctx)]
         (cond
           ;; wrong size consumption
           (not= (:size ctx') (dec (:size ctx)))
@@ -70,6 +69,10 @@ This generator also preserves uniformity."})
 
 (g/generate (simple-vector (aleatory.gen.atomic/unif-boolean))
             :size 10 :seed 424242)
+
+(g/generate (simple-vector (aleatory.gen.atomic/unif-boolean))
+            :size 0 :seed 424242)
+
 
 ;;{
 ;; ## Simple strings
@@ -97,12 +100,13 @@ The generator is `:sized` and thus consumes, for its element count, the whole re
 
 (extend-type SimpleString
   g/Generator
-  (generate [gen ctx] (gen-simple-string (:char-gen gen) ctx))
+  (prepare-context [gen ctx] (prepare-flat-context gen ctx))
+  (sample [gen ctx] (gen-simple-string (:char-gen gen) ctx))
   (describe [gen] (assoc simple-string-descr
                          :elements (g/describe (:char-gen gen)))))
 
-(g/generate (simple-string \a \c [\e \h] [\A \D]) {:fuel 10
-                                                   :source (prng/make-random 424242)})
+(g/generate (simple-string \a \c [\e \h] [\A \D]) :size 10 :seed 424242)
+(g/generate (simple-string \a \c [\e \h] [\A \D]) :size 0 :seed 424242)
 
 ;;; TODO: uniform strings of bounded length ?
 ;;; cf. stack overflow question
