@@ -391,7 +391,7 @@ The generator is `:controlled` and thus provides some control over the obtained 
                                      ;; no label
                                      [false {:message "Missing label for inner generator in context"
                                              :label label
-                                             :context ctx}])) [true ctx] (:grammar gen))]
+                                             :context ctx}])) [true ctx] inner-gens)]
         [ok ctx']))))
 
 (extend-type TreeGenerator
@@ -416,9 +416,10 @@ The generator is `:controlled` and thus provides some control over the obtained 
   (let [[sing weights wgrammar] (compile-grammar grammar eps-iter eps-div)]
     (->TreeGenerator wgrammar root weights sing)))
 
-
 (g/generate (treegen ott-grammar :ottree 0.001 0.0001) :min-size 10 :max-size 40 :seed 424242)
 ;; (g/generate (treegen ott-grammar :ottree 0.001 0.0001) :size 40 :seed 424242)
 
 (g/generate (treegen (bintree-grammar (atomic/unif-real))
-                     :bintree 0.001 0.00001) :min-size 10 :max-size 40 :seed 424242)
+                     :bintree 0.001 0.00001) :min-size 10 :max-size 40 :seed 424242 :inner {:size 1})
+
+

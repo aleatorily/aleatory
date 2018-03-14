@@ -35,7 +35,7 @@
     "Returns a description of the generator as a map,
  which can be used to recreate the generator, and also
 analyze its properties.")
-  (prepare-context [gen ctx]
+  (prepare-gen-context [gen ctx]
     "Checks the provided context for specific generator requirements.
 The returned information is a pair `[ok res]` with `ok` a boolean flag
 which is `true` is the context is accepted. The result `res` is in this
@@ -75,16 +75,15 @@ state and updated context."))
 ;; main generate function quite user-friendly.
 (declare parse-gen-opts)
 (declare parse-gen-positional)
-(declare prepare-gen-context)
+(declare prepare-context)
 
 (defn generate [gen & opts]
   (let [[args ctx] (parse-gen-opts opts)
         positional (parse-gen-positional args)
-        ctx' (prepare-gen-context ctx)
-        [ok ctx''] (prepare-context gen ctx')]
+        [ok ctx'] (prepare-context gen ctx)]
     (when (not ok)
       (throw (ex-info "Cannot generate object: bad generator context"
-                      (assoc ctx'' :context ctx'))))
+                      (assoc ctx' :context ctx))))
     (if-let [nb-samples (get positional :nb-samples)]
       (samples nb-samples gen ctx')
       (sample gen ctx'))))
@@ -118,17 +117,26 @@ a strictly positive integer (number of samples)"{:argument nb-samples})))))
 ;; (dynamic var)
 (def ^:dynamic *reseed-function* prng/random-seed)
 
-(defn prepare-gen-context [ctx]
-  (let [ctx (if-let [seed (get ctx :seed)]
-              (if (integer? seed)
-                ctx
-                (throw (ex-info "Context option :seed should be an integer." {:seed seed})))
-              (if-let [src (get ctx :source)]
-                (assoc ctx :seed (:seed src))
-                (assoc ctx :seed (*reseed-function*))))        
-        ctx (if-let [src (get ctx :source)]
-              (if (prng/random-source? src)
-                ctx
-                (throw (ex-info "Context option :source should be a RandomSource" {:source src})))
-              (assoc ctx :source (prng/make-random (:seed ctx))))]
-    ctx))
+(defn prepare-context [gen ctx]
+  (let [[ok ctx] (if-let [seed (get ctx :seed)]
+                   (if (integer? seed)
+                     [true (assoc ctx :reseed false)]
+                     [false {:message "Context option :seed should be an integer." :seed seed}])
+                   ;; no seed
+                   (if-let [src (get ctx :source)]
+                     [true (assoc ctx
+                                  :seed (:seed src)
+                                  :reseed false)]
+                     [true (assoc ctx
+                                  :seed (*reseed-function*)
+                                  :reseed true)]))]
+    (if (not ok)
+      [ok ctx]
+      (let [[ok ctx] (if-let [src (get ctx :source)]
+                       (if (prng/random-source? src)
+                         [true ctx]
+                         [false {:message "Context option :source should be a RandomSource" :source src}])
+                       [true (assoc ctx :source (prng/make-random (:seed ctx)))])]
+        (if (not ok)
+          [ok ctx]
+          (prepare-gen-context gen ctx))))))

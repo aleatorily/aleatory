@@ -42,7 +42,7 @@
 (defn prepare-atomic-context [ctx]
   (if-let [size (get ctx :size)]
     (if (and (integer? size)
-             (> size 0))
+             (>= size 0))
       [true ctx]
       [false {:message "The :size field of context should be a positive integer"
               :size size}])
@@ -51,14 +51,13 @@
 (defn atomic-gen [val ctx]
   (if (> (:size ctx) 0)
     [(g/gen-object val {:size 1}) (update ctx :size dec)]
-    ;; XXX this cannot happen because of the context preparation
     [(g/no-object :g/size-too-small {:target-size (:size ctx)
                                      :min-size 1}) ctx]))
 
 (extend-type Const
   g/Generator
   (describe [_] const-descr)
-  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (prepare-gen-context [_ ctx] (prepare-atomic-context ctx))
   (sample [gen ctx]
     (atomic-gen (:const gen) ctx)))
 
@@ -89,7 +88,7 @@
 
 (extend-type UnifBoolean
   g/Generator
-  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (prepare-gen-context [_ ctx] (prepare-atomic-context ctx))
   (sample [gen ctx]
     (let [[b src'] (prng/next-bool (:source ctx))]
       (atomic-gen b (assoc ctx :source src'))))
@@ -114,7 +113,7 @@
 
 (extend-type BernoulliBoolean
   g/Generator
-  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (prepare-gen-context [_ ctx] (prepare-atomic-context ctx))
   (sample [gen ctx]
     (let [[b src'] (prng/next-bernoulli (:source ctx) (:ptrue gen))]
       (atomic-gen b (assoc ctx :source src'))))
@@ -144,7 +143,7 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 
 (extend-type UnifReal
   g/Generator
-  (prepare-context [_ ctx] (prepare-atomic-context ctx))
+  (prepare-gen-context [_ ctx] (prepare-atomic-context ctx))
   (sample [gen ctx]
     (let [[x src'] (prng/next-real (:source ctx))]
       (atomic-gen x (assoc ctx :source src'))))
@@ -351,7 +350,7 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 
 (extend-type UnifChar
   g/Generator
-  (prepare-context [_ ctx] (prepare-atomic-context ctx))  
+  (prepare-gen-context [_ ctx] (prepare-atomic-context ctx))  
   (sample [gen ctx] (gen-unif-char gen ctx))
   (describe [gen] unif-char-descr))
 
