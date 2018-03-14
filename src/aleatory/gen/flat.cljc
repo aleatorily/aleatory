@@ -62,7 +62,7 @@ This generator also preserves uniformity."})
 
 (extend-type SimpleVector
   g/Generator
-  (prepare-context [gen ctx] (prepare-flat-context gen ctx))
+  (prepare-gen-context [gen ctx] (prepare-flat-context gen ctx))
   (sample [gen ctx] (gen-simple-vector (:atom gen) ctx))
   (describe [gen] (assoc simple-vector-descr
                          :elements (g/describe (:atom gen)))))
@@ -100,7 +100,7 @@ The generator is `:sized` and thus consumes, for its element count, the whole re
 
 (extend-type SimpleString
   g/Generator
-  (prepare-context [gen ctx] (prepare-flat-context gen ctx))
+  (prepare-gen-context [gen ctx] (prepare-flat-context gen ctx))
   (sample [gen ctx] (gen-simple-string (:char-gen gen) ctx))
   (describe [gen] (assoc simple-string-descr
                          :elements (g/describe (:char-gen gen)))))

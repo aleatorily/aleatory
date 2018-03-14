@@ -295,7 +295,7 @@
       (and (vector? elem) (seq elem))
       (case (first elem)
         ::result
-        [size elem ctx]
+        [size (second elem) ctx]
         ::either
         (let [[elem' src'] (choose (:source ctx) (rest elem))]
           (recur (assoc ctx :source src') elem' size cont))
@@ -314,8 +314,9 @@
         (let [[label labelgen] (if (= (count elem) 3)
                                  [(second elem) (nth elem 2)]
                                  [:inner (second elem)])
-              [obj inner-ctx'] (g/sample labelgen (get ctx label))
-              ctx' (assoc ctx label inner-ctx')]
+              inner-ctx (get ctx label)
+              [obj inner-ctx'] (g/sample labelgen inner-ctx)
+              ctx' (assoc ctx label (assoc inner-ctx' :size (:size inner-ctx)))]
           (if (g/no-object? obj)
             [0 obj ctx']
             (if (seq cont)
@@ -347,10 +348,6 @@
    :params {:grammar "The tree grammar used for generation."}
    :doc "A generator for tree structures based on boltzmann sampling. The structure is described by the `:grammar` parameter.
 The generator is `:controlled` and thus provides some control over the obtained size. In practice it will consume up-to the allowed `size` value. This generator is uniform (as long as the label generators are also uniform)."})
-
-(defn treegen [grammar root eps-iter eps-div]
-  (let [[sing weights wgrammar] (compile-grammar grammar eps-iter eps-div)]
-    (->TreeGenerator wgrammar root weights sing)))
 
 ;; by default 10% approximation of size
 (def ^:dynamic *min-size-ratio* 0.1)
@@ -396,7 +393,7 @@ The generator is `:controlled` and thus provides some control over the obtained 
 
 (extend-type TreeGenerator
   g/Generator
-  (prepare-context [gen ctx] (prepare-treegen-context gen ctx))
+  (prepare-gen-context [gen ctx] (prepare-treegen-context gen ctx))
   (sample [gen ctx]
     ;; (println "ctx=" ctx)
     (let [[size tree ctx'] (boltzmann ctx
@@ -409,17 +406,27 @@ The generator is `:controlled` and thus provides some control over the obtained 
         (g/no-object? tree) [tree ctx']
         (< size 0) [(g/no-object ::size-not-found {:message "Boltzmann sampling failure."}) ctx']
         :else
-        [(g/gen-object tree {:size size})])))
+        [(g/gen-object tree {:size size}) ctx'])))
   (describe [gen] treegen-descr))
 
 (defn treegen [grammar root eps-iter eps-div]
   (let [[sing weights wgrammar] (compile-grammar grammar eps-iter eps-div)]
     (->TreeGenerator wgrammar root weights sing)))
 
-(g/generate (treegen ott-grammar :ottree 0.001 0.0001) :min-size 10 :max-size 40 :seed 424242)
+(first
+ (g/generate (treegen ott-grammar :ottree 0.001 0.0001)
+             :min-size 10 :max-size 40 :seed 424242))
 ;; (g/generate (treegen ott-grammar :ottree 0.001 0.0001) :size 40 :seed 424242)
 
-(g/generate (treegen (bintree-grammar (atomic/unif-real))
-                     :bintree 0.001 0.00001) :min-size 10 :max-size 40 :seed 424242 :inner {:size 1})
+(first
+ (g/generate (treegen (bintree-grammar (atomic/unif-real))
+                      :bintree 0.001 0.00001)
+             :min-size 10 :max-size 40
+             :seed 424242 :inner {:seed 393939 :size 1}))
 
 
+(first
+ (g/generate (treegen (gentree-grammar (atomic/unif-boolean))
+                      :gentree 0.001 0.00001)
+             :min-size 900 :max-size 1000
+             :seed 424242 :inner {:seed 393939 :size 1}))
