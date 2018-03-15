@@ -419,7 +419,7 @@ The generator is `:controlled` and thus provides some control over the obtained 
 ;; (g/generate (treegen ott-grammar :ottree 0.001 0.0001) :size 40 :seed 424242)
 
 (first
- (g/generate (treegen (bintree-grammar (atomic/unif-real))
+ (g/generate (treegen (bintree-grammar (atomic/unif-int 10 30))
                       :bintree 0.001 0.00001)
              :min-size 10 :max-size 40
              :seed 424242 :inner {:seed 393939 :size 1}))
@@ -428,5 +428,6 @@ The generator is `:controlled` and thus provides some control over the obtained 
 (first
  (g/generate (treegen (gentree-grammar (atomic/unif-boolean))
                       :gentree 0.001 0.00001)
-             :min-size 900 :max-size 1000
+             :min-size 10 :max-size 40
              :seed 424242 :inner {:seed 393939 :size 1}))
+

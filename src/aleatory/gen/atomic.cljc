@@ -151,6 +151,31 @@ between 0.0 (inclusive) and 1.0 (exclusive)."})
 
 (g/generate (->UnifReal) :size 1 :seed 424242)
 
+(defrecord UnifInt [min max])
+
+(def unif-int-descr
+  {:generator ::unif-int
+   :props #{:uniform :atomic}
+   :params {:min :max}
+   :doc "Draw a uniform integer number (32 bits signed) 
+between :min (inclusive, defaults to 0) and :max (exclusive)."})
+
+(defn unif-int
+  "Draw a uniform integer number (32 bits signed) 
+  between `min` (inclusive, defaults to 0) and `max` (exclusive)."
+  ([max] (unif-int 0 max))
+  ([min max] (->UnifInt min max)))
+
+(extend-type UnifInt
+  g/Generator
+  (prepare-gen-context [_ ctx] (prepare-atomic-context ctx))
+  (sample [gen ctx]
+    (let [[x src'] (prng/next-int (:source ctx) (:min gen) (:max gen))]
+      (atomic-gen x (assoc ctx :source src'))))
+  (describe [gen] unif-int-descr))
+
+(g/generate (->UnifInt 10 30) :size 1 :seed 424242)
+
 ;;{
 ;; ## Generation of characters
 
