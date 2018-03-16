@@ -111,3 +111,39 @@ The generator is `:sized` and thus consumes, for its element count, the whole re
 ;;; TODO: uniform strings of bounded length ?
 ;;; cf. stack overflow question
 ;;; https://stackoverflow.com/questions/3066707/how-do-i-generate-a-random-string-of-up-to-a-certain-length
+
+;;{
+;; ## Simple keywords
+;;}
+
+(defrecord SimpleKeyword [char-gen])
+
+(def simple-keyword-descr
+  {:generator ::unif-real
+   :props #{:uniform :flat :sized}
+   :params {:char-gen "The underlying character generator."}
+   :doc "A generator for simple keywords over the specified character generator. 
+The generator is `:sized` and thus consumes, for its element count, the whole remaining fuel size (unless
+ a timeout is reached). This generator is uniform."})
+
+(defn simple-keyword
+  "A generator for simple keywords over the specified character alphabets `alphas`, cf. [[atomic/unif-char]]. 
+  The generator is `:sized` and thus consumes, for its element count, the whole remaining fuel size (unless
+ a timeout is reached). This generator is uniform."
+  [& alphas]
+  (->SimpleKeyword (apply atomic/unif-char alphas)))
+
+(defn gen-simple-keyword [char-gen ctx]
+  (g/gen-fmap-data keyword (gen-simple-string char-gen ctx)))
+
+(extend-type SimpleKeyword
+  g/Generator
+  (prepare-gen-context [gen ctx] (prepare-flat-context gen ctx))
+  (sample [gen ctx] (gen-simple-keyword (:char-gen gen) ctx))
+  (describe [gen] (assoc simple-keyword-descr
+                         :elements (g/describe (:char-gen gen)))))
+
+(g/generate (simple-keyword \a \c [\e \h] [\A \D]) :size 10 :seed 424242)
+(g/generate (simple-keyword \a \c [\e \h] [\A \D]) :size 0 :seed 424242)
+
+
