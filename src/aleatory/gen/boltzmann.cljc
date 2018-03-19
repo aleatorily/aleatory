@@ -431,3 +431,9 @@ The generator is `:controlled` and thus provides some control over the obtained 
              :min-size 10 :max-size 40
              :seed 424242 :inner {:seed 393939 :size 1}))
 
+(first
+ (g/generate (treegen (gentree-grammar (atomic/unif-boolean))
+                      :gentree 0.001 0.00001)
+             :min-size 10 :max-size 40
+             :seed 424242 :inner {:size 1}))
+

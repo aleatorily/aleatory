@@ -46,7 +46,8 @@
       [true ctx]
       [false {:message "The :size field of context should be a positive integer"
               :size size}])
-    [false {:message "Missing :size field in context." :ctx ctx}]))
+    ;; we generate size 1 by default (sized generator)
+    [true (assoc ctx :size 1)1]))
 
 (defn atomic-gen [val ctx]
   (if (> (:size ctx) 0)
@@ -62,7 +63,7 @@
     (atomic-gen (:const gen) ctx)))
 
 (g/generate (->Const 42) :size 1 :seed 424242)
-;; (u/except-info (g/generate (->Const 42) :seed 424242))
+(g/generate (->Const 42) :seed 424242)
 (g/generate (->Const 42) :size 1)
 
 
