@@ -57,7 +57,15 @@ This generator also preserves uniformity."})
                        [false {:message "Missing :elem field in context (compound generation)." :ctx ctx}])]
         (if (not ok)
           [ok ctx]
-          (let [[ok elem-ctx] (g/prepare-context (:elem gen) (:elem ctx))]
+          (let [elem-ctx (:elem ctx)
+                elem-ctx (if (or (get elem-ctx :source)
+                                 (get elem-ctx :seed)
+                                 (get elem-ctx :reseed))
+                           elem-ctx
+                           (assoc elem-ctx
+                                  :source (:source ctx)
+                                  :seed (:seed ctx)))
+                [ok elem-ctx] (g/prepare-context (:elem gen) elem-ctx)]
             (if (not ok)
               [ok elem-ctx]
               [ok (assoc ctx :elem elem-ctx)])))))))
@@ -87,10 +95,17 @@ This generator also preserves uniformity."})
 (g/generate (vector-gen (aleatory.gen.atomic/unif-int 10 50))
             :size 10 :seed 424242 :elem {:size 1 :seed 424242})
 
+(g/generate (vector-gen (aleatory.gen.atomic/unif-int 10 50))
+            :size 10 :seed 424242 :elem {:size 1})
+
+(g/generate (vector-gen (aleatory.gen.atomic/unif-int 10 50))
+            :size 10 :seed 424242 :elem {:size 1 :reseed true})
+
 
 (g/generate (vector-gen (vector-gen (aleatory.gen.atomic/unif-int 10 50)))
             :size 5 :seed 424242 :elem {:size 5 :seed 393939 :elem {:size 1 :seed 12345}})
 
 (g/generate (vector-gen (vector-gen (aleatory.gen.atomic/unif-int 10 50)))
             :size 5 :elem {:size 5 :elem {:size 1}})
+
 
