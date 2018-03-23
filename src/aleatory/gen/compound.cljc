@@ -36,6 +36,22 @@ This generator also preserves uniformity."})
   [elem]
   (->Vector elem))
 
+(defn prepare-element-context [ctx elem-ctx elem]
+  (let [elem-ctx (if (or (get elem-ctx :source)
+                         (get elem-ctx :seed)
+                         (get elem-ctx :reseed))
+                   elem-ctx
+                   (assoc elem-ctx
+                          :inherit true))
+        [ok elem-ctx] (g/prepare-context elem (if (:inherit elem-ctx)
+                                                       (assoc elem-ctx :source (:source ctx))
+                                                       elem-ctx))]
+    (if (not ok)
+      [ok elem-ctx]
+      [true (if (:inherit elem-ctx)
+              (dissoc elem-ctx :source :seed :reseed)
+              elem-ctx)])))
+
 (defn prepare-vector-context [gen ctx]
   (let [[ok ctx] (if-let [size (get ctx :size)]
                    (if (and (integer? size)
@@ -57,35 +73,29 @@ This generator also preserves uniformity."})
                        [false {:message "Missing :elem field in context (compound generation)." :ctx ctx}])]
         (if (not ok)
           [ok ctx]
-          (let [elem-ctx (:elem ctx)
-                elem-ctx (if (or (get elem-ctx :source)
-                                 (get elem-ctx :seed)
-                                 (get elem-ctx :reseed))
-                           elem-ctx
-                           (assoc elem-ctx
-                                  :inherit true))
-                [ok elem-ctx] (g/prepare-context (:elem gen) (if (:inherit elem-ctx)
-                                                               (assoc elem-ctx :source (:source ctx))
-                                                               elem-ctx))]
+          (let [[ok elem-ctx] (prepare-element-context ctx (:elem ctx) (:elem gen))]
             (if (not ok)
               [ok elem-ctx]
-              [ok (assoc ctx :elem (if (:inherit elem-ctx)
-                                     (dissoc elem-ctx :source :seed :reseed)
-                                     elem-ctx))])))))))
+              [ok (assoc ctx :elem elem-ctx)])))))))
+
+(defn wrap-element-context [ctx elem-ctx]
+  (if (:inherit elem-ctx)
+    (assoc elem-ctx :source (:source ctx))
+    elem-ctx))
+
+(defn unwrap-element-context [ctx elem-ctx]
+  (if (:inherit elem-ctx)
+    [(assoc ctx :source (:source elem-ctx))
+     (dissoc elem-ctx :source :seed :reseed)]
+    [ctx elem-ctx]))
 
 (defn generate-vector [elem-gen ctx]
   (loop [ctx ctx, v []]
     (if (zero? (:size ctx))
       [(g/gen-object v {:size (count v)}) ctx]
-      (let [elem-ctx (let [ectx (:elem ctx)]
-                       (if (:inherit ectx)
-                         (assoc ectx :source (:source ctx))
-                         ectx))
+      (let [elem-ctx (wrap-element-context ctx (:elem ctx))
             [obj elem-ctx' :as ret] (g/sample elem-gen elem-ctx)
-            [ctx' elem-ctx''] (if (:inherit elem-ctx)
-                                [(assoc ctx :source (:source elem-ctx'))
-                                 (dissoc elem-ctx' :source :seed :reseed)]
-                                [ctx elem-ctx'])]
+            [ctx' elem-ctx''] (unwrap-element-context ctx elem-ctx')]
         (if (g/no-object? obj)
           [obj (assoc ctx' :elem elem-ctx'')]
           (recur (assoc ctx'
@@ -111,7 +121,6 @@ This generator also preserves uniformity."})
 
 (g/generate (vector-gen (aleatory.gen.atomic/unif-int 10 50))
             :size 10 :seed 424242 :elem {:size 1 :reseed true})
-
 
 (g/generate (vector-gen (vector-gen (aleatory.gen.atomic/unif-int 10 50)))
             :size 5 :seed 424242 :elem {:size 5 :seed 393939 :elem {:size 1 :seed 12345}})
@@ -143,16 +152,6 @@ This generator also preserves uniformity."})
   [& elems]
   (->Tuple elems))
 
-(defn prepare-tuple-element-context [gen ctx elem-gen elem-ctx]
-  (let [elem-ctx (if (or (get elem-ctx :source)
-                         (get elem-ctx :seed)
-                         (get elem-ctx :reseed))
-                   elem-ctx
-                   (assoc elem-ctx
-                          :source (:source ctx)
-                          :seed (:seed ctx)))]
-    (g/prepare-context elem-gen elem-ctx)))
-
 (defn prepare-tuple-context [gen ctx]
   (let [[ok elems-ctx]
         (if-let [elems-ctx (get ctx :elems)]
@@ -161,7 +160,7 @@ This generator also preserves uniformity."})
                       (reduced [ok' elem-ctx])
                       [ok (conj elems-ctx elem-ctx)]))
                   [true []]
-                  (map #(prepare-tuple-element-context gen ctx %1 %2) (:elems gen) elems-ctx))
+                  (map #(prepare-element-context ctx %1 %2) elems-ctx (:elems gen)))
           [false {:message "Missing :elems field in context (tuple generation)." :ctx ctx}])]
     (if (not ok)
       [ok ctx]
@@ -171,11 +170,13 @@ This generator also preserves uniformity."})
   (loop [ctx ctx, elems-gen elems-gen, idx 0, tup []]
     (if (seq elems-gen)
       (let [elem-gen (first elems-gen)]
-        (let [[obj elem-ctx' :as ret] (g/sample elem-gen (nth (:elems ctx) idx))
-              elems-ctx' (assoc (:elems ctx) idx elem-ctx')]
+        (let [elem-ctx (wrap-element-context ctx (nth (:elems ctx) idx))
+              [obj elem-ctx' :as ret] (g/sample elem-gen elem-ctx)
+              [ctx' elem-ctx''] (unwrap-element-context ctx elem-ctx')
+              elems-ctx' (assoc (:elems ctx') idx (assoc elem-ctx'' :size (:size elem-ctx)))]
           (if (g/no-object? obj)
-            [obj (assoc ctx :elems elems-ctx')]
-            (recur (assoc ctx
+            [obj (assoc ctx' :elems elems-ctx')]
+            (recur (assoc ctx'
                           :elems elems-ctx')
                    (rest elems-gen)
                    (inc idx)
