@@ -63,23 +63,34 @@ This generator also preserves uniformity."})
                                  (get elem-ctx :reseed))
                            elem-ctx
                            (assoc elem-ctx
-                                  :source (:source ctx)
-                                  :seed (:seed ctx)))
-                [ok elem-ctx] (g/prepare-context (:elem gen) elem-ctx)]
+                                  :inherit true))
+                [ok elem-ctx] (g/prepare-context (:elem gen) (if (:inherit elem-ctx)
+                                                               (assoc elem-ctx :source (:source ctx))
+                                                               elem-ctx))]
             (if (not ok)
               [ok elem-ctx]
-              [ok (assoc ctx :elem elem-ctx)])))))))
+              [ok (assoc ctx :elem (if (:inherit elem-ctx)
+                                     (dissoc elem-ctx :source :seed :reseed)
+                                     elem-ctx))])))))))
 
 (defn generate-vector [elem-gen ctx]
   (loop [ctx ctx, v []]
     (if (zero? (:size ctx))
       [(g/gen-object v {:size (count v)}) ctx]
-      (let [[obj elem-ctx' :as ret] (g/sample elem-gen (:elem ctx))]
+      (let [elem-ctx (let [ectx (:elem ctx)]
+                       (if (:inherit ectx)
+                         (assoc ectx :source (:source ctx))
+                         ectx))
+            [obj elem-ctx' :as ret] (g/sample elem-gen elem-ctx)
+            [ctx' elem-ctx''] (if (:inherit elem-ctx)
+                                [(assoc ctx :source (:source elem-ctx'))
+                                 (dissoc elem-ctx' :source :seed :reseed)]
+                                [ctx elem-ctx'])]
         (if (g/no-object? obj)
-          [obj (assoc ctx :elem elem-ctx')]
-          (recur (assoc ctx
-                        :size (dec (:size ctx))
-                        :elem (assoc elem-ctx' :size (:size (:elem ctx))))
+          [obj (assoc ctx' :elem elem-ctx'')]
+          (recur (assoc ctx'
+                        :size (dec (:size ctx'))
+                        :elem (assoc elem-ctx'' :size (:size (:elem ctx'))))
                  (conj v (:data obj))))))))
 
 (extend-type Vector
@@ -107,7 +118,6 @@ This generator also preserves uniformity."})
 
 (g/generate (vector-gen (vector-gen (aleatory.gen.atomic/unif-int 10 50)))
             :size 5 :elem {:size 5 :elem {:size 1}})
-
 
 
 ;;{
