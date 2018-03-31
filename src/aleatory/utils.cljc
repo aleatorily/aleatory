@@ -85,3 +85,14 @@
 
 ;; (except-info (throw (ex-info "the message" {:the :data})))
 ;; => {:the :data, :message "the message"}
+
+
+(defn bigint-quotrem [^clojure.lang.BigInt a ^clojure.lang.BigInt b]
+  "Returns a pair `[q r]` of both the quotient
+and remainder of dividing `a` by `b`.
+Note that the function is for big integers only"
+  #?(:clj (let [arr (.divideAndRemainder (biginteger a) (biginteger b))]
+            [(bigint (aget arr 0)) (bigint (aget arr 1))])
+     :cljs [(quot a b) (rem a b)]))
+
+
