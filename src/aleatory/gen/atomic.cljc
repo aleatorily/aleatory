@@ -47,7 +47,7 @@
       [false {:message "The :size field of context should be a positive integer"
               :size size}])
     ;; we generate size 1 by default (sized generator)
-    [true (assoc ctx :size 1)1]))
+    [true (assoc ctx :size 1)]))
 
 (defn atomic-gen [val ctx]
   (if (> (:size ctx) 0)

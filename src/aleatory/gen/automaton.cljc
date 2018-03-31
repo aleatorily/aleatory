@@ -110,3 +110,48 @@
 (generate-path (prng/make-random) aut-ex (preprocess aut-ex 10) 10)
 
 
+;;{
+;; ## The generator
+;;}
+
+(defrecord AutoGen [automaton length weights])
+
+(def autogen-descr
+  {:generator ::vector
+   :props #{:uniform :flat}
+   :params {} ;; no generation-time parameter
+   :doc "Generates a quasi-uniform path in a deterministic finite-state automaton."})
+
+
+(defn autogen
+  "A uniform random generator of path for deterministic
+  finite-state automata. This can be used to generate
+  words of regular languages quasi-uniformly at random."
+  [aut len]
+  (->AutoGen aut len (preprocess aut len)))
+
+(defn prepare-autogen-context [ctx len]
+  (if-let [size (get ctx :size)]
+    (if (and (integer? size)
+             (>= size len))
+      [true ctx]
+      [false {:message "The :size field of context should be a positive integer greated than the path length"
+              :size size
+              :length len}])
+    ;; we generate size 1 by default (sized generator)
+    [true (assoc ctx :size len)]))
+
+(extend-type AutoGen
+  g/Generator
+  (describe [_] autogen-descr)
+  (prepare-gen-context [gen ctx] (prepare-autogen-context ctx (:length gen)))
+  (sample [gen ctx]
+    (let [[path src'] (generate-path (:source ctx) (:automaton gen) (:weights gen) (:length gen))]
+      (if (seq path)
+        [(g/gen-object path {:size (:length gen)})
+         (update ctx :size #(- % (:length gen)))]
+        [(g/no-object ::no-path-found {:target-length (:length gen)}) ctx]))))
+
+(g/generate (autogen aut-ex 10) :seed 424242)
+(g/generate (autogen aut-ex 1) :seed 424242)
+(g/generate (autogen aut-ex 3) :seed 424242)
